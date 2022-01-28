@@ -4,9 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"strings"
 )
+
 
 var CDNProviders = map[string]string{
   "AMAZON":  "https://ip-ranges.amazonaws.com/ip-ranges.json",
@@ -139,32 +141,52 @@ func CacheflyCDN()[]string {
 }
 
 
+func checkIPCIDR(ip string, cidr string) bool {
+_, subnet, _ := net.ParseCIDR(cidr)
+IP := net.ParseIP(ip)
+    if subnet.Contains(IP) {
+        fmt.Printf("%v is in subnet %v", IP, subnet)
+        return true
+    } else {
+      return false
+    }
+}
+
+
+
+
 func main() {
 
   var CDNIPs []string
 
-  //fmt.Print(amazon)
-  // fmt.Println(amazon)
-  // fmt.Println(fastly)
-  // fmt.Println(google)
+  // //fmt.Print(amazon)
+  // // fmt.Println(amazon)
+  // // fmt.Println(fastly)
+  // // fmt.Println(google)
 
-  var amazon = AmazonCDN()
-  var fastly = FastlyCDN()
-  var google = GoogleCDN()
+  // var amazon = AmazonCDN()
+  // var fastly = FastlyCDN()
+  // var google = GoogleCDN()
   var cloudflare = CloudflareCDN()
-  var cachefly = CacheflyCDN()
+  // var cachefly = CacheflyCDN()
 
-  CDNIPs = append(CDNIPs, amazon...)
-  CDNIPs = append(CDNIPs, fastly...)
-  CDNIPs = append(CDNIPs, google...)
+  // CDNIPs = append(CDNIPs, amazon...)
+  // CDNIPs = append(CDNIPs, fastly...)
+  // CDNIPs = append(CDNIPs, google...)
   CDNIPs = append(CDNIPs, cloudflare...)
-  CDNIPs = append(CDNIPs, cachefly...)
+  // CDNIPs = append(CDNIPs, cachefly...)
 
+  var myips = []string{"1.2.3.4","192.168.5.1", "131.0.72.124"}
 
-  for _, rec := range CDNIPs {
-    fmt.Println(rec)
+  for _, myip := range myips {
+    for _, CDNIP := range CDNIPs {
+      checkIPCIDR(myip, CDNIP)
+    }
   }
 
-  fmt.Print(len(CDNIPs))
+  // fmt.Print(len(CDNIPs))
+
+
+  
 
 }
