@@ -1,11 +1,13 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net"
 	"net/http"
+	"os"
 	"strings"
 )
 
@@ -145,48 +147,79 @@ func checkIPCIDR(ip string, cidr string) bool {
 _, subnet, _ := net.ParseCIDR(cidr)
 IP := net.ParseIP(ip)
     if subnet.Contains(IP) {
-        fmt.Printf("%v is in subnet %v", IP, subnet)
+        fmt.Printf("%v is in subnet %v\n", IP, subnet)
         return true
     } else {
       return false
     }
 }
 
-
-
+// https://dabase.com/e/15006/ 
+func delete_empty (s []string) []string {
+	var r []string
+	for _, str := range s {
+		if str != "" {
+			r = append(r, str)
+		}
+	}
+	return r
+}
 
 func main() {
 
+  var ips []string
   var CDNIPs []string
 
-  // //fmt.Print(amazon)
-  // // fmt.Println(amazon)
-  // // fmt.Println(fastly)
-  // // fmt.Println(google)
+  var file *os.File
+  file = os.Stdin
 
-  // var amazon = AmazonCDN()
-  // var fastly = FastlyCDN()
-  // var google = GoogleCDN()
-  var cloudflare = CloudflareCDN()
-  // var cachefly = CacheflyCDN()
-
-  // CDNIPs = append(CDNIPs, amazon...)
-  // CDNIPs = append(CDNIPs, fastly...)
-  // CDNIPs = append(CDNIPs, google...)
-  CDNIPs = append(CDNIPs, cloudflare...)
-  // CDNIPs = append(CDNIPs, cachefly...)
-
-  var myips = []string{"1.2.3.4","192.168.5.1", "131.0.72.124"}
-
-  for _, myip := range myips {
-    for _, CDNIP := range CDNIPs {
-      checkIPCIDR(myip, CDNIP)
+  sc := bufio.NewScanner(file)
+    for sc.Scan() {
+        ips = append(ips, sc.Text())
     }
+
+  if err := sc.Err(); err != nil {
+      panic(err)
   }
+
+  // // //fmt.Print(amazon)
+  // // // fmt.Println(amazon)
+  // // // fmt.Println(fastly)
+  // // // fmt.Println(google)
+
+  var amazon = AmazonCDN()
+  var fastly = FastlyCDN()
+  var google = GoogleCDN()
+  var cloudflare = CloudflareCDN()
+  var cachefly = CacheflyCDN()
+
+  CDNIPs = append(CDNIPs, amazon...)
+  CDNIPs = append(CDNIPs, fastly...)
+  CDNIPs = append(CDNIPs, google...)
+  CDNIPs = append(CDNIPs, cloudflare...)
+  CDNIPs = append(CDNIPs, cachefly...)
+
+  CDNIPs = delete_empty(CDNIPs)
 
   // fmt.Print(len(CDNIPs))
 
-
-  
+   for _, ip := range ips {
+    for _, CDNRange := range CDNIPs {
+      checkIPCIDR(ip, CDNRange)
+    }
+  }
 
 }
+
+
+
+
+
+// test 
+  // var myips = []string{"1.2.3.4","192.168.5.1", "131.0.72.124"}
+
+  // for _, myip := range myips {
+  //   for _, CDNIP := range CDNIPs {
+  //     checkIPCIDR(myip, CDNIP)
+  //   }
+  // }
