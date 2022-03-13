@@ -12,12 +12,26 @@ import (
 	"strings"
 )
 
+// api response structs
+// https://transform.tools/json-to-go
+
 var CDNProviders = map[string]string{
 	"AMAZON":     "https://ip-ranges.amazonaws.com/ip-ranges.json",
 	"CLOUDFLARE": "https://www.cloudflare.com/ips-v4",
 	"GOOGLE":     "https://www.gstatic.com/ipranges/cloud.json",
 	"FASTLY":     "https://api.fastly.com/public-ip-list",
 	"CACHEFLY":   "https://cachefly.cachefly.net/ips/rproxy.txt",
+}
+
+var ASNs = map[string][]string{
+	"AKAMAI":      {"AS12222", "AS16625"},
+	"DDOSGUARD":   {"AS57724"},
+	"QRATOR":      {"AS200449"},
+	"STACKPATH":   {"AS12989"},
+	"STORMWALL":   {"AS59796"},
+	"SUCURI":      {"AS30148"},
+	"X4B":         {"AS136165"},
+	"CDNNETWORKS": {"AS36408"},
 }
 
 type AmazonCDNResponse struct {
@@ -45,6 +59,35 @@ type GoogleCDNResponse struct {
 		Service    string `json:"service"`
 		Scope      string `json:"scope"`
 	} `json:"prefixes"`
+}
+
+type bgpviewResponse struct {
+	Status        string `json:"status"`
+	StatusMessage string `json:"status_message"`
+	Data          struct {
+		Ipv4Prefixes []struct {
+			Prefix      string `json:"prefix"`
+			IP          string `json:"ip"`
+			Cidr        int    `json:"cidr"`
+			RoaStatus   string `json:"roa_status"`
+			Name        string `json:"name"`
+			Description string `json:"description"`
+			CountryCode string `json:"country_code"`
+			Parent      struct {
+				Prefix           string `json:"prefix"`
+				IP               string `json:"ip"`
+				Cidr             int    `json:"cidr"`
+				RirName          string `json:"rir_name"`
+				AllocationStatus string `json:"allocation_status"`
+			} `json:"parent"`
+		} `json:"ipv4_prefixes"`
+		Ipv6Prefixes []interface{} `json:"ipv6_prefixes"`
+	} `json:"data"`
+	Meta struct {
+		TimeZone      string `json:"time_zone"`
+		APIVersion    int    `json:"api_version"`
+		ExecutionTime string `json:"execution_time"`
+	} `json:"@meta"`
 }
 
 func AmazonCDN() []string {
@@ -153,6 +196,35 @@ func CacheflyCDN() []string {
 	ips = strings.Split(string(body), "\n")
 	return ips
 }
+func bgpviewCheck(asnBlock []string) []string {
+	var ips []string
+
+	for _, asn := range asnBlock {
+		bgpViewURL := fmt.Sprintf("https://api.bgpview.io/asn/%s/prefixes", asn)
+
+		resp, err := http.Get(bgpViewURL)
+		if err != nil {
+			fmt.Println("No response from request")
+		}
+		defer resp.Body.Close()
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			fmt.Println(err)
+		}
+
+		var result bgpviewResponse
+		if err := json.Unmarshal(body, &result); err != nil {
+			fmt.Println("Can not unmarshal JSON")
+		}
+
+		for _, rec := range result.Data.Ipv4Prefixes {
+			if len(rec.Prefix) != 0 {
+				ips = append(ips, rec.Prefix)
+			}
+		}
+	}
+	return ips
+}
 
 func checkIPCIDR(ip string, cidr string) bool {
 
@@ -212,11 +284,29 @@ func main() {
 	var cloudflare = CloudflareCDN()
 	var cachefly = CacheflyCDN()
 
+	var akamai = bgpviewCheck(ASNs["AKAMAI"])
+	var ddosguard = bgpviewCheck(ASNs["DDOSGUARD"])
+	var qrator = bgpviewCheck(ASNs["QRATOR"])
+	var stackpath = bgpviewCheck(ASNs["STACKPATH"])
+	var stormwall = bgpviewCheck(ASNs["STORMWALL"])
+	var sucuri = bgpviewCheck(ASNs["SUCURI"])
+	var x4b = bgpviewCheck(ASNs["X4B"])
+	var cdnnetworks = bgpviewCheck(ASNs["CDNNETWORKS"])
+
 	CDNIPs = append(CDNIPs, amazon...)
 	CDNIPs = append(CDNIPs, fastly...)
 	CDNIPs = append(CDNIPs, google...)
 	CDNIPs = append(CDNIPs, cloudflare...)
 	CDNIPs = append(CDNIPs, cachefly...)
+	CDNIPs = append(CDNIPs, akamai...)
+	CDNIPs = append(CDNIPs, ddosguard...)
+	CDNIPs = append(CDNIPs, qrator...)
+	CDNIPs = append(CDNIPs, stackpath...)
+	CDNIPs = append(CDNIPs, stormwall...)
+	CDNIPs = append(CDNIPs, sucuri...)
+	CDNIPs = append(CDNIPs, x4b...)
+	CDNIPs = append(CDNIPs, cdnnetworks...)
+
 	CDNIPs = delete_empty(CDNIPs)
 
 	for i := 0; i < len(ips); i++ {
